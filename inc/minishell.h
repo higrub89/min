@@ -79,5 +79,10 @@ typedef struct s_minishell
 } t_struct;
 
 # include "lexer.h"
+# include "parser.h"
+# include "redirection.h"
+# include "expander.h"
+# include "env_utils.h"
+# include "main_utils.h"
 
 #endif

@@ -14,14 +14,14 @@ RM					= rm -f
 
 # Source Files
 COMMANDS_DIR		=	srcs/minishell.c \
-									srcs/lexer.c 
-									
-#									srcs/parser.c \
-#									srcs/redirection.c \
-#									srcs/expander.c \
+									srcs/lexer.c \
+									srcs/parser.c \
+									srcs/redirection.c \
+									srcs/env_utils.c \
+									srcs/expander.c \
+									srcs/main_utils.c 
+
 #									srcs/executor.c \
-#									srcs/main_utils.c \
-#									srcs/env_utils.c \
 #									srcs/builtin_unset.c \
 #									srcs/builtin_pwd.c \
 #									srcs/builtin_export.c \

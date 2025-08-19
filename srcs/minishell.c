@@ -1,75 +1,114 @@
 #include "../inc/minishell.h"
-#include "../inc/lexer.h"
+#include "../inc/env_utils.h"
 
-// Una función de ayuda para imprimir el tipo de token como una cadena.
-// Facilita la lectura de la salida de prueba.
-static const char *token_type_to_str(t_token_type type)
+// Función de ayuda para imprimir la lista de comandos y sus detalles.
+static void print_commands(t_command *cmd_list)
 {
-    if (type == WORD) return "WORD";
-    if (type == PIPE) return "PIPE";
-    if (type == IN) return "IN";
-    if (type == OUT) return "OUT";
-    if (type == APPE_OUT) return "APPE_OUT";
-    if (type == HEREDOC) return "HEREDOC";
-    return "UNKNOWN";
+    int i;
+    int cmd_num = 1;
+    t_redirection *redir;
+
+    if (!cmd_list)
+    {
+        printf("-> Parser returned NULL\n");
+        return;
+    }
+
+    printf("\n--- ✅ Final Command Structure ---\n");
+    while (cmd_list)
+    {
+        printf("  [Command #%d]\n", cmd_num++);
+        
+        // Imprimir argumentos
+        printf("    Args: ");
+        i = 0;
+        if (cmd_list->args)
+        {
+            while (cmd_list->args[i])
+            {
+                printf("[\"%s\"] ", cmd_list->args[i]);
+                i++;
+            }
+        }
+        printf("\n");
+
+        // Imprimir redirecciones
+        printf("    Redirections: ");
+        redir = cmd_list->redirections;
+        if (!redir)
+            printf("None");
+        else
+        {
+            while (redir)
+            {
+                printf("(Type: %d, File: \"%s\") ", redir->type, redir->file);
+                redir = redir->next;
+            }
+        }
+        printf("\n");
+
+        cmd_list = cmd_list->next;
+    }
 }
 
-// Función principal para probar el lexer.
-int main(void)
+// Función principal para probar el flujo completo hasta el expander.
+// Necesita 'argc' y 'argv' para recibir el entorno 'envp'.
+int main(int argc, char **argv, char **envp)
 {
     char        *input_line;
     t_token     *token_list;
-    t_token     *current_token;
-    t_struct    mini; // El lexer necesita una referencia, aunque no la usemos mucho aquí.
+    t_command   *command_list;
+    t_struct    mini;
 
-    // Inicialización básica de la estructura mini.
-    // Para las pruebas del lexer, solo necesitamos que no sea basura.
-    ft_bzero(&mini, sizeof(t_struct));
+    // Evitar warnings de parámetros no usados
+    (void)argc;
+    (void)argv;
+
+    // Inicializar la estructura mini con el entorno real
+    if (init_minishell(&mini, envp) != 0)
+        return (1);
 
     while (1)
     {
-        input_line = readline("lexer_test> ");
-        if (!input_line) // Manejo de CTRL+D (EOF)
+        input_line = readline("m_test> ");
+        if (!input_line)
         {
             printf("exit\n");
             break;
         }
-
         if (input_line[0])
             add_history(input_line);
 
-        printf("--- Input: \"%s\" ---\n", input_line);
-
-        // 1. Llama al Lexer
+        // --- 1. Lexer ---
         token_list = lexer(input_line, &mini);
-
-        // 2. Imprime la lista de tokens generada
         if (!token_list)
         {
-            printf("-> Lexer returned NULL (syntax error or empty line)\n");
+            free(input_line);
+            continue;
         }
-        else
+
+        // --- 2. Parser ---
+        command_list = parse_input(token_list, &mini);
+        free_tokens(token_list); // Los tokens ya no son necesarios
+        if (!command_list)
         {
-            printf("-> Tokens: ");
-            current_token = token_list;
-            while (current_token)
-            {
-                printf("[%s: \"%s\"]",
-                    token_type_to_str(current_token->type), current_token->value);
-                if (current_token->next)
-                    printf(" -> ");
-                current_token = current_token->next;
-            }
-            printf("\n");
+            free(input_line);
+            continue;
         }
 
-        // 3. Libera la memoria
-        if (token_list)
-            free_tokens(token_list);
-        free(input_line);
+        // --- 3. Expander ---
+        expand_variables(command_list, &mini);
 
-        printf("-------------------------\n\n");
+        // --- 4. Imprimir resultado final ---
+        print_commands(command_list);
+
+        // --- 5. Liberar memoria ---
+        free_commands(command_list);
+        free(input_line);
+        printf("-----------------------------------\n\n");
     }
-    // system("leaks lexer_test"); // Descomenta esto si estás en macOS para comprobar fugas
+
+    // Limpieza final
+    cleanup_minishell(&mini);
     return (0);
 }
